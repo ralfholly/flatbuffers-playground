@@ -1,0 +1,25 @@
+syntax = "proto3";
+package protobuftest;
+
+option java_package = "com.example.protobuftest";
+
+message CurrentDateTimeMessage {
+  string title = 1;
+  uint32 counter = 2;
+  Date date = 3;
+  Time time = 4;
+
+  message Date {
+      uint32 day = 1;
+      uint32 month = 2;
+      uint32 year = 3;
+      string weekday = 4;
+  }
+
+  message Time {
+      uint32 hours = 1;
+      uint32 minutes = 2;
+      uint32 seconds = 3;
+      uint32 milliseconds = 4;
+  }
+}
