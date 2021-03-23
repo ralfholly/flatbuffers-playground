@@ -4,17 +4,36 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <functional>
+#include <chrono>
 
 using namespace std;
 using namespace protobuftest;
 
+#define TIMEIT(code) timeit([&]() { code; })
+
+inline double steadyClockDelta(std::chrono::time_point<std::chrono::steady_clock> start, std::chrono::time_point<std::chrono::steady_clock> end)
+{
+    using steady_clock = std::chrono::steady_clock;
+    return (end - start).count() * steady_clock::period::num / static_cast<double>(steady_clock::period::den);
+}
+
+inline double timeit(const std::function<void()>& lambda) {
+    using steady_clock = std::chrono::steady_clock;
+    auto start = steady_clock::now();
+    lambda();
+    auto end = steady_clock::now();
+    return steadyClockDelta(start, end);
+}
+
 void buildMessage(flatbuffers::FlatBufferBuilder& builder) {
+    volatile static int m_year = 2000;
     // Bottom-up creation is required.
     auto weekday = builder.CreateString("Monday");
     DateBuilder dateBuilder(builder);
     dateBuilder.add_day(11);
     dateBuilder.add_month(9);
-    dateBuilder.add_year(2001);
+    dateBuilder.add_year(m_year++);
     dateBuilder.add_weekday(weekday);
     auto date = dateBuilder.Finish();
     TimeBuilder timeBuilder(builder);
@@ -95,6 +114,16 @@ int main(int argc, char* argv[]) {
     } else {
         cerr << "Failed to load message!" << endl;
     }
+
+    constexpr size_t reps = 10'000'000;
+    double runtime = TIMEIT(
+        for (size_t i = 0; i < reps; ++i) {
+            flatbuffers::FlatBufferBuilder builder(1024);
+            buildMessage(builder);
+        }
+    );
+    cout << "Runtime: " << runtime << endl;
+    cout << "Average message build time: " << 1'000'000 * runtime / reps << " usec" << endl;
 
     return 0;
 }
