@@ -4,9 +4,11 @@ class FlatbuffersPlayground(ConanFile):
     name        = "flatbuffers-playground"
     version     = "0.0.1"
     generators  = "cmake_find_package", "cmake_paths"
+    settings    = "os", "compiler", "build_type", "arch"
+
     def requirements(self):
         self.requires("flatbuffers/1.12.0")
-        settings = "os", "compiler", "build_type", "arch"
+        self.requires("flatc/1.12.0")
 
     def configure(self):
         pass

@@ -1,21 +1,23 @@
 set(TARGET_EXE CurrentDateTimeTest)
-set(PROTO_FILE current_date_time.proto)
+set(FBS_FILE current_date_time.fbs)
 
-find_package(Protobuf REQUIRED)
+find_package(Flatbuffers REQUIRED)
 
-include_directories(${Protobuf_INCLUDE_DIRS})
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
-
+include_directories(${CMAKE_BINARY_DIR})
 add_executable(${TARGET_EXE}
     CurrentDateTimeTest.cpp
-    ${PROTO_SRCS}
-    ${PROTO_HDRS}
     )
 
-target_link_libraries(${TARGET_EXE} protobuf::protobuf)
+target_link_libraries(${TARGET_EXE} flatbuffers::flatbuffers)
 
-protobuf_generate(
-    LANGUAGE cpp
-    TARGET ${TARGET_EXE}
-    PROTOS ${PROTO_FILE}
-    )
+# add_dependencies(${TARGET_EXE} fbs_target)
+# 
+# build_flatbuffers(
+#     current_date_time.fbs
+#     ${CMAKE_CURRENT_SOURCE_DIR}
+#     fbs_target
+#     ""
+#     ""
+#     ""
+#     ""
+#     )

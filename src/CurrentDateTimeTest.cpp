@@ -1,5 +1,4 @@
-#include "current_date_time.pb.h"
-#include <google/protobuf/util/json_util.h>
+#include "current_date_time_generated.h"
 
 #include <cstring>
 #include <iostream>
@@ -8,64 +7,67 @@
 
 using namespace std;
 using namespace protobuftest;
-using namespace google::protobuf::util;
 
-#undef JSON_SERIALIZATION
-
-void buildMessage(CurrentDateTimeMessage* msg) {
-    msg->set_title("A simple test");
-    msg->set_counter(42);
-    CurrentDateTimeMessage::Date* date = msg->mutable_date();
-    date->set_day(11);
-    date->set_month(9);
-    date->set_year(2001);
-    date->set_weekday("Monday");
-    CurrentDateTimeMessage::Time* time = msg->mutable_time();
-    time->set_hours(1);
-    time->set_minutes(2);
-    time->set_seconds(3);
+void buildMessage(flatbuffers::FlatBufferBuilder& builder) {
+    // Bottom-up creation is required.
+    auto weekday = builder.CreateString("Monday");
+    DateBuilder dateBuilder(builder);
+    dateBuilder.add_day(11);
+    dateBuilder.add_month(9);
+    dateBuilder.add_year(2001);
+    dateBuilder.add_weekday(weekday);
+    auto date = dateBuilder.Finish();
+    TimeBuilder timeBuilder(builder);
+    timeBuilder.add_hours(1);
+    timeBuilder.add_minutes(2);
+    timeBuilder.add_seconds(3);
+    auto time = timeBuilder.Finish();
+    auto title = builder.CreateString("A simple test");
+    CurrentDateTimeMessageBuilder currentDateTimeMessageBuilder(builder);
+    currentDateTimeMessageBuilder.add_title(title);
+    currentDateTimeMessageBuilder.add_counter(42);
+    currentDateTimeMessageBuilder.add_date(date);
+    currentDateTimeMessageBuilder.add_time(time);
+    auto currentDateTimeMessage = currentDateTimeMessageBuilder.Finish();
+    builder.Finish(currentDateTimeMessage);
 }
 
-bool storeMessage(const CurrentDateTimeMessage* msg, const char* fname) {
-    ofstream serializingStream(fname, ofstream::out | ofstream::binary | ofstream::trunc);
-#if JSON_SERIALIZATION
-    {
-        // Also save as JSON file.
-        std::string json;
-        JsonPrintOptions options;
-        options.add_whitespace = true;
-        options.always_print_primitive_fields = true;
-        options.preserve_proto_field_names = true;
-        Status status = MessageToJsonString(*msg, &json, options);
-        ofstream jsonStream(string(fname) + ".json", ofstream::out);
-        jsonStream << json << endl;
-    }
-#endif
-    return msg->SerializeToOstream(&serializingStream);
+bool storeMessage(flatbuffers::FlatBufferBuilder& builder, const char* fname) {
+    ofstream serializingStream(fname, ofstream::out | ofstream::binary);
+    serializingStream.write(reinterpret_cast<char*>(builder.GetBufferPointer()), builder.GetSize());
+    return serializingStream.good();
 }
 
-bool loadMessage(CurrentDateTimeMessage* msg, const char* fname) {
-    ifstream serializingStream(fname, ofstream::binary);
-    return msg->ParseFromIstream(&serializingStream);
+bool loadMessage(vector<char>& buffer, const CurrentDateTimeMessage** msg, const char* fname) {
+    std::ifstream file(fname, std::ios::binary);
+    std::streampos fileSize;
+    file.seekg(0, std::ios::end);
+    fileSize = file.tellg();
+    file.seekg(0, std::ios::beg);
+    buffer.resize(fileSize);
+    file.read(buffer.data(), fileSize);
+    const CurrentDateTimeMessage* currentDateTimeMessage = flatbuffers::GetRoot<CurrentDateTimeMessage>(buffer.data());
+    *msg = currentDateTimeMessage;
+    return currentDateTimeMessage != nullptr;
 }
 
 void printMessage(const CurrentDateTimeMessage* msg) {
     cout << "Received a message:" << endl;
-    cout << "\tTitle: " << msg->title() << endl;
+    cout << "\tTitle: " << msg->title()->c_str() << endl;
     cout << "\tCounter: " << msg->counter() << endl;
-    if (msg->has_date()) {
-        const CurrentDateTimeMessage::Date& date = msg->date();
-        cout << "\t" << date.weekday() << ", " << date.year() << "-" <<
-            setw(2) << setfill('0') << date.month() << "-" <<
-            setw(2) << setfill('0') << date.day() << endl;
+    if (msg->date() != nullptr) {
+        const Date* date = msg->date();
+        cout << "\t" << date->weekday()->c_str() << ", " << date->year() << "-" <<
+            setw(2) << setfill('0') << date->month() << "-" <<
+            setw(2) << setfill('0') << date->day() << endl;
     } else {
         cout << "No date element found!" << endl;
     }
-    if (msg->has_time()) {
-        const CurrentDateTimeMessage::Time& time = msg->time();
-        cout << "\t" << setw(2) << setfill('0') << time.hours() << ":" <<
-            setw(2) << setfill('0') << time.minutes() << ":" <<
-            setw(2) << setfill('0') << time.seconds() << endl;
+    if (msg->time() != nullptr) {
+        const Time* time = msg->time();
+        cout << "\t" << setw(2) << setfill('0') << time->hours() << ":" <<
+            setw(2) << setfill('0') << time->minutes() << ":" <<
+            setw(2) << setfill('0') << time->seconds() << endl;
     } else {
         cout << "No time element found!" << endl;
     }
@@ -81,13 +83,15 @@ int main(int argc, char* argv[]) {
     ifstream f(fname);
     if (!f.good()) {
         cout << "Creating current date/time entry" << endl;
-        CurrentDateTimeMessage msg;
-        buildMessage(&msg);
-        storeMessage(&msg, fname);
+        flatbuffers::FlatBufferBuilder builder(1024);
+        buildMessage(builder);
+        storeMessage(builder, fname);
     }
-    CurrentDateTimeMessage msg2;
-    if (loadMessage(&msg2, fname)) {
-        printMessage(&msg2);
+
+    const CurrentDateTimeMessage* msg2;
+    vector<char> buffer;
+    if (loadMessage(buffer, &msg2, fname)) {
+        printMessage(msg2);
     } else {
         cerr << "Failed to load message!" << endl;
     }

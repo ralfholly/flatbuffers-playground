@@ -1,0 +1,22 @@
+namespace protobuftest;
+
+table CurrentDateTimeMessage {
+  title: string;
+  counter: uint32;
+  date: Date;
+  time: Time;
+}
+
+table Date {
+  day: uint32;
+  month: uint32;
+  year: uint32;
+  weekday: string;
+}
+
+table Time {
+  hours: uint32;
+  minutes: uint32;
+  seconds: uint32;
+  milliseconds: uint32;
+}
